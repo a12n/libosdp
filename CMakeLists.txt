@@ -41,5 +41,8 @@ add_custom_command(
 set_source_files_properties(${OSDP_C} PROPERTIES GENERATED TRUE)
 add_library(osdp STATIC ${OSDP_C})
 
+add_executable(osdp_test osdp_test.c)
+target_link_libraries(osdp_test osdp)
+
 install(FILES osdp.h DESTINATION include)
 install(TARGETS osdp DESTINATION lib)
