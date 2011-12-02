@@ -45,8 +45,7 @@ struct osdp_phone;
 struct osdp_repeat_time;
 struct osdp_session_descr;
 struct osdp_time;
-
-/* TODO: Time zone adjustements. */
+struct osdp_time_zones;
 
 struct osdp_attribute
 {
@@ -198,6 +197,8 @@ struct osdp_session_descr
     struct osdp_time* times;    /* + */
     size_t times_size;
 
+    struct osdp_time_zones* time_zones; /* ? */
+
     struct osdp_key* key;       /* ? */
 
     struct osdp_attribute* attributes; /* * */
@@ -208,7 +209,7 @@ struct osdp_session_descr
 };
 #define OSDP_SESSION_DESCR_INIT                                         \
     { -1, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL, 0,      \
-            NULL, 0, NULL, NULL, 0, NULL, 0 }
+            NULL, 0, NULL, NULL, NULL, 0, NULL, 0 }
 
 struct osdp_time
 {
@@ -221,6 +222,17 @@ struct osdp_time
 };
 #define OSDP_TIME_INIT                          \
     { 0UL, 0UL, NULL, 0 }
+
+struct osdp_time_zones
+{
+    uint64_t* adjustment_times; /* + */
+    size_t adjustment_times_size;
+
+    uint64_t* offsets;          /* + */
+    size_t offsets_size;
+};
+#define OSDP_TIME_ZONES_INIT                    \
+    { NULL, 0, NULL, 0 }
 
 
 extern void (*osdp_free)(void*);
