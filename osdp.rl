@@ -117,10 +117,10 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
             "+"? digit [ \-0-9]+;
 
         email_safe =
-            [^\0\r\n];
+            [^\0\r\n()<>];
 
         phone_number =
-            (phone >save_begin_1 %save_end_1 " "* "(" email_safe+ >save_begin_2 %save_end_2 ")")
+            (phone >save_begin_1 %save_end_1 " "+ "(" email_safe+ >save_begin_2 %save_end_2 ")")
              %{ phones_back->number = osdp_copy(begin_1, end_1);
                 phones_back->name = osdp_copy(begin_2, end_2); } |
             (email_safe+ >save_begin_2 %save_end_2 " "+ "<" phone >save_begin_1 %save_end_1 ">")
