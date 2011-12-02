@@ -226,13 +226,11 @@ struct osdp_time
 struct osdp_time_zones
 {
     uint64_t* adjustment_times; /* + */
-    size_t adjustment_times_size;
-
     uint64_t* offsets;          /* + */
-    size_t offsets_size;
+    size_t size;
 };
 #define OSDP_TIME_ZONES_INIT                    \
-    { NULL, 0, NULL, 0 }
+    { NULL, NULL, 0 }
 
 
 extern void (*osdp_free)(void*);
