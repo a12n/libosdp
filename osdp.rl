@@ -92,7 +92,7 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
         action save_end_2 { end_2 = fpc; }
 
         crlf =
-            ("\n" | "\r\n");
+            "\n" | "\r\n";
 
         text =
             [^\0\r\n]+;
@@ -148,18 +148,92 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
         uri =
             (alnum | [:/.])+;
 
-        # FIXME
+
+        non_ws_string =
+            print+;
+
         username =
-            alnum+;
+            non_ws_string;
 
-        # FIXME
+        extn_addr =
+            non_ws_string;
+
+        fqdn =
+            (alnum | [\-.]){4,};
+
+        integer =
+            [1-9] digit*;
+
+        decimal_uchar =
+            digit | ([1-9] digit) | ("1" digit{2}) | ("2" [01234] digit) | ("25" [012345]);
+
+        b1 =
+            decimal_uchar;
+
+        ip4_address =
+            b1 ("." decimal_uchar){3};
+
+        ttl =
+            ([1-9] digit{,2}) | "0";
+
+        m1 =
+            ("22" [456789]) | ("23" digit);
+
+        ip4_multicast =
+            m1 ("." decimal_uchar){3} "/" ttl ("/" integer)?;
+
+        hex4 =
+            xdigit{1,4};
+
+        hexseq =
+            hex4 (":" hex4)*;
+
+        hexpart =
+            hexseq | (hexseq "::" hexseq?) | ("::" hexseq?);
+
+        ip6_multicast =
+            hexpart ("/" integer)?;
+
+        ip6_address =
+            hexpart (":" ip4_address)?;
+
+        multicast_address =
+            ip4_multicast | ip6_multicast | fqdn | extn_addr;
+
         unicast_address =
-            (alnum | ".")+;
+            ip4_address | ip6_address | fqdn | extn_addr;
 
-        # FIXME
         connection_address =
-            unicast_address;
+            multicast_address | unicast_address;
 
+
+        time =
+            [1-9] digit{9,};
+
+        start_time =
+            time | "0";
+
+        stop_time =
+            time | "0";
+
+        fixed_len_time_unit =
+            "d" | "h" | "m" | "s";
+
+        typed_time =
+            digit+ fixed_len_time_unit;
+
+        repeat_interval =
+            [1-9] digit* fixed_len_time_unit;
+
+        zone_adjustements =
+            "z=" time " " "-"? typed_time (" " time " " "-"? typed_time)*;
+
+        repeat_fields =
+            "r=" repeat_interval " " typed_time (" " typed_time)+;
+
+        time_fields =
+            ("t=" start_time " " stop_time (crlf repeat_fields)* crlf)+
+            ("z=" zone_adjustements crlf)?;
 
         action new_bandwidth {
             size_t new_sz = sdp->bandwidths_size + 1;
@@ -264,6 +338,7 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
             phone_fields
             connection_field
             bandwidth_fields
+            time_fields
             ;
 
         main :=
@@ -288,21 +363,103 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
     return 0;
 }
 
-void
-osdp_reset(struct osdp_session_descr* sdp)
+static void
+osdp_reset_origin(struct osdp_origin* origin)
+{
+    if (origin != NULL) {
+        osdp_free(origin->username);
+        osdp_free(origin->network_type);
+        osdp_free(origin->address_type);
+        osdp_free(origin->address);
+        osdp_free(origin);
+    }
+}
+
+static void
+osdp_reset_connection(struct osdp_connection* connection)
+{
+    if (connection != NULL) {
+        osdp_free(connection->network_type);
+        osdp_free(connection->address_type);
+        osdp_free(connection->address);
+        osdp_free(connection);
+    }
+}
+
+static void
+osdp_reset_bandwidths(struct osdp_bandwidth* bandwidths, size_t size)
 {
     size_t i;
 
+    for (i = 0; i < size; ++i) {
+        osdp_free(bandwidths[i].type);
+    }
+    osdp_free(bandwidths);
+}
+
+static void
+osdp_reset_key(struct osdp_key* key)
+{
+    if (key != NULL) {
+        osdp_free(key->method);
+        osdp_free(key->value);
+        osdp_free(key);
+    }
+}
+
+static void
+osdp_reset_attributes(struct osdp_attribute* attributes, size_t size)
+{
+    size_t i;
+
+    for (i = 0; i < size; ++i) {
+        osdp_free(attributes[i].name);
+        osdp_free(attributes[i].value);
+    }
+    osdp_free(attributes);
+}
+
+static void
+osdp_reset_media(struct osdp_media* media)
+{
+    if (media != NULL) {
+        size_t i;
+
+        osdp_free(media->type);
+        osdp_free(media->protocol);
+        for (i = 0; i < media->formats_size; ++i) {
+            osdp_free(media->formats[i]);
+        }
+        osdp_free(media->formats);
+        osdp_free(media);
+    }
+}
+
+static void
+osdp_reset_media_descrs(struct osdp_media_descr* media_descrs, size_t size)
+{
+    size_t i;
+
+    for (i = 0; i < size; ++i) {
+        osdp_reset_media(media_descrs[i].media);
+        osdp_free(media_descrs[i].information);
+        osdp_reset_connection(media_descrs[i].connection);
+        osdp_reset_bandwidths(media_descrs[i].bandwidths, media_descrs[i].bandwidths_size);
+        osdp_reset_key(media_descrs[i].key);
+        osdp_reset_attributes(media_descrs[i].attributes, media_descrs[i].attributes_size);
+    }
+    osdp_free(media_descrs);
+}
+
+void
+osdp_reset(struct osdp_session_descr* sdp)
+{
+    size_t i, j;
+
     sdp->protocol_version = -1;
 
-    if (sdp->origin != NULL) {
-        osdp_free(sdp->origin->username);
-        osdp_free(sdp->origin->network_type);
-        osdp_free(sdp->origin->address_type);
-        osdp_free(sdp->origin->address);
-        osdp_free(sdp->origin);
-        sdp->origin = NULL;
-    }
+    osdp_reset_origin(sdp->origin);
+    sdp->origin = NULL;
 
     osdp_free(sdp->name);
     sdp->name = NULL;
@@ -329,39 +486,38 @@ osdp_reset(struct osdp_session_descr* sdp)
     sdp->phones = NULL;
     sdp->phones_size = 0;
 
-    if (sdp->connection != NULL) {
-        osdp_free(sdp->connection->network_type);
-        osdp_free(sdp->connection->address_type);
-        osdp_free(sdp->connection->address);
-        osdp_free(sdp->connection);
-        sdp->connection = NULL;
-    }
+    osdp_reset_connection(sdp->connection);
+    sdp->connection = NULL;
 
-    for (i = 0; i < sdp->bandwidths_size; ++i) {
-        osdp_free(sdp->bandwidths[i].type);
-    }
-    osdp_free(sdp->bandwidths);
+    osdp_reset_bandwidths(sdp->bandwidths, sdp->bandwidths_size);
     sdp->bandwidths = NULL;
     sdp->bandwidths_size = 0;
 
     for (i = 0; i < sdp->times_size; ++i) {
-        /* TODO */
+        for (j = 0; j < sdp->times[i].repeats_size; ++j) {
+            osdp_free(sdp->times[i].repeats[j].offsets);
+        }
+        osdp_free(sdp->times[i].repeats);
     }
+    osdp_free(sdp->times);
     sdp->times = NULL;
     sdp->times_size = 0;
 
-    /* TODO */
+    if (sdp->time_zones != NULL) {
+        osdp_free(sdp->time_zones->adjustment_times);
+        osdp_free(sdp->time_zones->offsets);
+        osdp_free(sdp->time_zones);
+        sdp->time_zones = NULL;
+    }
+
+    osdp_reset_key(sdp->key);
     sdp->key = NULL;
 
-    for (i = 0; i < sdp->attributes_size; ++i) {
-        /* TODO */
-    }
+    osdp_reset_attributes(sdp->attributes, sdp->attributes_size);
     sdp->attributes = NULL;
     sdp->attributes_size = 0;
 
-    for (i = 0; i < sdp->media_descrs_size; ++i) {
-        /* TODO */
-    }
+    osdp_reset_media_descrs(sdp->media_descrs, sdp->media_descrs_size);
     sdp->media_descrs = NULL;
     sdp->media_descrs_size = 0;
 }
