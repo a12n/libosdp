@@ -35,6 +35,18 @@ void (*osdp_free)(void*) = free;
 
 void* (*osdp_realloc)(void*, size_t) = realloc;
 
+int
+osdp_format_session_descr(const struct osdp_session_descr* sdp, char** str_ptr, size_t* sz_ptr)
+{
+    (void)sdp;
+    (void)str_ptr;
+    (void)sz_ptr;
+
+    /* TODO */
+
+    return -1;
+}
+
 static char*
 osdp_copy(const char* begin, const char* end)
 {
@@ -51,19 +63,7 @@ osdp_copy(const char* begin, const char* end)
 }
 
 int
-osdp_format(const struct osdp_session_descr* sdp, char** str_ptr, size_t* sz_ptr)
-{
-    (void)sdp;
-    (void)str_ptr;
-    (void)sz_ptr;
-
-    /* TODO */
-
-    return -1;
-}
-
-int
-osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
+osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t sz)
 {
     const char* p = str;
     const char* pe = p + sz;
@@ -452,7 +452,7 @@ osdp_reset_media_descrs(struct osdp_media_descr* media_descrs, size_t size)
 }
 
 void
-osdp_reset(struct osdp_session_descr* sdp)
+osdp_reset_session_descr(struct osdp_session_descr* sdp)
 {
     size_t i, j;
 

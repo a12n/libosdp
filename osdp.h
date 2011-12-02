@@ -241,14 +241,14 @@ extern void* (*osdp_realloc)(void*, size_t);
 
 
 int
-osdp_format(const struct osdp_session_descr*, char**, size_t*);
+osdp_format_session_descr(const struct osdp_session_descr*, char**, size_t*);
 
 /* Allowed for freshly created osdp_session_descr or after osdp_reset. */
 int
-osdp_parse(struct osdp_session_descr*, const char*, size_t);
+osdp_parse_session_descr(struct osdp_session_descr*, const char*, size_t);
 
 void
-osdp_reset(struct osdp_session_descr*);
+osdp_reset_session_descr(struct osdp_session_descr*);
 
 #ifdef __cplusplus
 } // extern "C"
