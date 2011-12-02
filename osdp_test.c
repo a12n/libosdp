@@ -10,14 +10,16 @@
 static void
 print_session_descr(const struct osdp_session_descr* sdp)
 {
-    printf("Protocol Version: %d\n", sdp->protocol_version);
+    size_t i;
+
+    printf("protocol_version: %d\n", sdp->protocol_version);
     if (sdp->origin != NULL) {
-        printf("Origin.Username: \"%s\"\n"
-               "Origin.Session Id: %llu\n"
-               "Origin.Session Version: %llu\n"
-               "Origin.Network Type: \"%s\"\n"
-               "Origin.Address Type: \"%s\"\n"
-               "Origin.Address: \"%s\"",
+        printf("origin.username: \"%s\"\n"
+               "origin.session_id: %llu\n"
+               "origin.session_version: %llu\n"
+               "origin.network_type: \"%s\"\n"
+               "origin.address_type: \"%s\"\n"
+               "origin.address: \"%s\"\n",
                sdp->origin->username,
                sdp->origin->session_id,
                sdp->origin->session_version,
@@ -25,12 +27,24 @@ print_session_descr(const struct osdp_session_descr* sdp)
                sdp->origin->address_type,
                sdp->origin->address);
     }
-    printf("Session Name: \"%s\"\n"
-           "Session Information: \"%s\"\n"
-           "URI: \"%s\"\n",
+    printf("session_name: \"%s\"\n"
+           "session_information: \"%s\"\n"
+           "uri: \"%s\"\n",
            sdp->name,
            sdp->information,
            sdp->uri);
+    for (i = 0; i < sdp->emails_size; ++i) {
+        printf("emails[%d].address: \"%s\"\n"
+               "emails[%d].name: \"%s\"\n",
+               i, sdp->emails[i].address,
+               i, sdp->emails[i].name);
+    }
+    for (i = 0; i < sdp->phones_size; ++i) {
+        printf("phones[%d].number: \"%s\"\n"
+               "phones[%d].name: \"%s\"\n",
+               i, sdp->phones[i].number,
+               i, sdp->phones[i].name);
+    }
 }
 
 int
