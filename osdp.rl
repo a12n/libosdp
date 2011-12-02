@@ -22,6 +22,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -72,6 +73,12 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
     const char* aux = NULL;
     int ok = 0;
 
+    size_t new_sz;
+    void* new_ptr;
+
+    struct osdp_email* emails_back;
+    struct osdp_phone* phones_back;
+
     /* Current char as a digit */
 #define fcd (*p - '0')
 
@@ -99,20 +106,69 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
         addrtype =
             token;
 
+        # FIXME
+        addr_spec =
+            (alnum | [@.])+;
 
+        phone =
+            "+"? digit [ \-0-9]+;
+
+        email_safe =
+            [^\0\r\n];
+
+        phone_number =
+            (phone >save_aux %{ phones_back->number = osdp_mkstr(aux, fpc); } " "* "(" email_safe+ >save_aux %{ phones_back->name = osdp_mkstr(aux, fpc); } ")") |
+            (email_safe+ >save_aux %{ phones_back->name = osdp_mkstr(aux, fpc); } "<" phone >save_aux %{ phones_back->number = osdp_mkstr(aux, fpc); } ">") |
+            phone >save_aux %{ phones_back->number = osdp_mkstr(aux, fpc); };
+
+        email_address =
+            (addr_spec >save_aux %{ emails_back->address = osdp_mkstr(aux, fpc); } " "+ "(" email_safe+ >save_aux %{ emails_back->name = osdp_mkstr(aux, fpc); } ")") |
+            (email_safe+ >save_aux %{ emails_back->name = osdp_mkstr(aux, fpc); } " "+ "<" addr_spec >save_aux %{ emails_back->address = osdp_mkstr(aux, fpc); } ">") |
+            addr_spec >save_aux %{ emails_back->address = osdp_mkstr(aux, fpc); };
+
+
+        # FIXME
         uri =
             (alnum | [:/.])+;
 
+        # FIXME
         username =
             alnum+;
 
+        # FIXME
         unicast_address =
             (alnum | ".")+;
 
 
 
+        phone_fields =
+            ("p=" phone_number >{
+                new_sz = sdp->phones_size + 1;
+                new_ptr = osdp_realloc(sdp->phones, new_sz * sizeof(struct osdp_phone));
+                if (new_ptr != NULL) {
+                    sdp->phones = new_ptr;
+                    sdp->phones_size = new_sz;
+                    phones_back = sdp->phones + (sdp->phones_size - 1);
+                } else {
+                    fbreak;
+                }
+            } crlf)*;
+
+        email_fields =
+            ("e=" email_address >{
+                new_sz = sdp->emails_size + 1;
+                new_ptr = osdp_realloc(sdp->emails, new_sz * sizeof(struct osdp_email));
+                if (new_ptr != NULL) {
+                    sdp->emails = new_ptr;
+                    sdp->emails_size = new_sz;
+                    emails_back = sdp->emails + (sdp->emails_size - 1);
+                } else {
+                    fbreak;
+                }
+            } crlf)*;
+
         uri_field =
-            ("u=" uri crlf)?;
+            ("u=" uri >save_aux %{ sdp->uri = osdp_mkstr(aux, fpc); } crlf)?;
 
         information_field =
             ("i=" text >save_aux %{ sdp->information = osdp_mkstr(aux, fpc); } crlf)?;
@@ -137,6 +193,8 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
             session_name_field
             information_field
             uri_field
+            email_fields
+            phone_fields
             ;
 
         main :=
@@ -148,7 +206,17 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
 
 #undef fcd
 
-    return ok ? 0 : (p - str) + 1;
+    /* System error, return -errno. */
+    if (errno != 0) {
+        return -errno;
+    }
+
+    /* Parser error, return position. */
+    if (!ok) {
+        return (p - str) + 1;
+    }
+
+    return 0;
 }
 
 void
@@ -177,13 +245,15 @@ osdp_reset(struct osdp_session_descr* sdp)
     sdp->uri = NULL;
 
     for (i = 0; i < sdp->emails_size; ++i) {
-        /* TODO */
+        osdp_free(sdp->emails[i].address);
+        osdp_free(sdp->emails[i].name);
     }
     sdp->emails = NULL;
     sdp->emails_size = 0;
 
     for (i = 0; i < sdp->phones_size; ++i) {
-        /* TODO */
+        osdp_free(sdp->phones[i].number);
+        osdp_free(sdp->phones[i].name);
     }
     sdp->phones = NULL;
     sdp->phones_size = 0;
