@@ -45,6 +45,24 @@ print_session_descr(const struct osdp_session_descr* sdp)
                i, sdp->phones[i].number,
                i, sdp->phones[i].name);
     }
+    if (sdp->connection != NULL) {
+        printf("connection.network_type: \"%s\"\n"
+               "connection.address_type: \"%s\"\n"
+               "connection.address: \"%s\"\n"
+               "connection.ttl: %d\n"
+               "connection.n_addresses: %d\n",
+               sdp->connection->network_type,
+               sdp->connection->address_type,
+               sdp->connection->address,
+               sdp->connection->ttl,
+               sdp->connection->n_addresses);
+    }
+    for (i = 0; i < sdp->bandwidths_size; ++i) {
+        printf("bandwidths[%d].type: \"%s\"\n"
+               "bandwidths[%d].value: %d\n",
+               i, sdp->bandwidths[i].type,
+               i, sdp->bandwidths[i].value);
+    }
 }
 
 int
