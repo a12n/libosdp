@@ -10,7 +10,7 @@
 static void
 print_session_descr(const struct osdp_session_descr* sdp)
 {
-    size_t i;
+    size_t i, j, k;
 
     printf("protocol_version: %d\n", sdp->protocol_version);
     if (sdp->origin != NULL) {
@@ -63,6 +63,30 @@ print_session_descr(const struct osdp_session_descr* sdp)
                i, sdp->bandwidths[i].type,
                i, sdp->bandwidths[i].value);
     }
+    for (i = 0; i < sdp->times_size; ++i) {
+        printf("times[%d].start: %llu\n"
+               "times[%d].stop: %llu\n",
+               i, sdp->times[i].start,
+               i, sdp->times[i].stop);
+        for (j = 0; j < sdp->times[i].repeats_size; ++j) {
+            printf("times[%d].repeats[%d].interval: %llu"
+                   "times[%d].repeats[%d].duration: %llu",
+                   i, j, sdp->times[i].repeats[j].interval,
+                   i, j, sdp->times[i].repeats[j].duration);
+            for (k = 0; k < sdp->times[i].repeats[j].offsets_size; ++k) {
+                printf("times[%d].repeats[%d].offsets[%d]: %llu\n",
+                       i, j, k, sdp->times[i].repeats[j].offsets[k]);
+            }
+        }
+    }
+    if (sdp->time_zones != NULL) {
+        for (i = 0; i < sdp->time_zones->size; ++i) {
+            printf("time_zones.adjustment_times[%d]: %llu\n"
+                   "time_zones.offsets[%d]: %llu\n",
+                   i, sdp->time_zones->adjustment_times[i],
+                   i, sdp->time_zones->offsets[i]);
+        }
+    }
 }
 
 int
@@ -77,7 +101,7 @@ main(void)
     int error;
 
     size = fread(str, 1, sizeof(str), stdin);
-    error = osdp_parse(&sdp, str, size);
+    error = osdp_parse_session_descr(&sdp, str, size);
     if (error < 0) {
         warnx(strerror(-error));
         ret = 1;
@@ -87,7 +111,7 @@ main(void)
     } else {
         print_session_descr(&sdp);
     }
-    osdp_reset(&sdp);
+    osdp_reset_session_descr(&sdp);
 
     return ret;
 }
