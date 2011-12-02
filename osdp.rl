@@ -76,8 +76,11 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
     const char* end_2 = NULL;
     int ok = 0;
 
+    struct osdp_bandwidth* bandwidths_back;
     struct osdp_email* emails_back;
     struct osdp_phone* phones_back;
+
+    errno = 0;
 
     /* Current char as a digit */
 #define fcd (*p - '0')
@@ -107,6 +110,9 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
             token;
 
         addrtype =
+            token;
+
+        bwtype =
             token;
 
         # FIXME
@@ -150,37 +156,75 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
         unicast_address =
             (alnum | ".")+;
 
+        # FIXME
+        connection_address =
+            unicast_address;
 
+
+        action new_bandwidth {
+            size_t new_sz = sdp->bandwidths_size + 1;
+            void* new_ptr;
+
+            new_ptr = osdp_realloc(sdp->bandwidths, new_sz * sizeof(struct osdp_bandwidth));
+            if (new_ptr != NULL) {
+                sdp->bandwidths = new_ptr;
+                sdp->bandwidths_size = new_sz;
+                bandwidths_back = sdp->bandwidths + (sdp->bandwidths_size - 1);
+            } else {
+                fbreak;
+            }
+        }
+
+        bandwidth_fields =
+            ("b=" %new_bandwidth bwtype >save_begin_1 %{ bandwidths_back->type = osdp_copy(begin_1, fpc); } ":"
+             digit+ >{ bandwidths_back->value = 0; } @{ bandwidths_back->value = bandwidths_back->value * 10 + fcd; } crlf)*;
+
+        action new_connection {
+            sdp->connection = osdp_realloc(NULL, sizeof(struct osdp_connection));
+            if (sdp->connection == NULL) {
+                fbreak;
+            }
+        }
+
+        connection_field =
+            ("c=" %new_connection
+             nettype >save_begin_1 %{ sdp->connection->network_type = osdp_copy(begin_1, fpc); } " "
+             addrtype >save_begin_1 %{ sdp->connection->address_type = osdp_copy(begin_1, fpc); } " "
+             connection_address >save_begin_1 %{ sdp->connection->address = osdp_copy(begin_1, fpc); } crlf)?;
+
+        action new_phone {
+            size_t new_sz = sdp->phones_size + 1;
+            void* new_ptr;
+
+            new_ptr = osdp_realloc(sdp->phones, new_sz * sizeof(struct osdp_phone));
+            if (new_ptr != NULL) {
+                sdp->phones = new_ptr;
+                sdp->phones_size = new_sz;
+                phones_back = sdp->phones + (sdp->phones_size - 1);
+            } else {
+                fbreak;
+            }
+        }
 
         phone_fields =
-            ("p=" phone_number >{
-                size_t new_sz = sdp->phones_size + 1;
-                void* new_ptr;
+            ("p=" %new_phone phone_number crlf)*;
 
-                new_ptr = osdp_realloc(sdp->phones, new_sz * sizeof(struct osdp_phone));
-                if (new_ptr != NULL) {
-                    sdp->phones = new_ptr;
-                    sdp->phones_size = new_sz;
-                    phones_back = sdp->phones + (sdp->phones_size - 1);
-                } else {
-                    fbreak;
-                }
-            } crlf)*;
+        action new_email {
+            size_t new_sz = sdp->emails_size + 1;
+            void* new_ptr;
+
+            new_ptr = osdp_realloc(sdp->emails, new_sz * sizeof(struct osdp_email));
+            if (new_ptr != NULL) {
+                sdp->emails = new_ptr;
+                sdp->emails_size = new_sz;
+                emails_back = sdp->emails + (sdp->emails_size - 1);
+            } else {
+                fbreak;
+            }
+        }
 
         email_fields =
-            ("e=" email_address >{
-                size_t new_sz = sdp->emails_size + 1;
-                void* new_ptr;
-
-                new_ptr = osdp_realloc(sdp->emails, new_sz * sizeof(struct osdp_email));
-                if (new_ptr != NULL) {
-                    sdp->emails = new_ptr;
-                    sdp->emails_size = new_sz;
-                    emails_back = sdp->emails + (sdp->emails_size - 1);
-                } else {
-                    fbreak;
-                }
-            } crlf)*;
+            ("e=" %new_email email_address crlf)*;
 
         uri_field =
             ("u=" uri >save_begin_1 %{ sdp->uri = osdp_copy(begin_1, fpc); } crlf)?;
@@ -191,8 +235,16 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
         session_name_field =
             "s=" text >save_begin_1 %{ sdp->name = osdp_copy(begin_1, fpc); } crlf;
 
+        action new_origin {
+            sdp->origin = osdp_realloc(NULL, sizeof(struct osdp_origin));
+            if (sdp->origin == NULL) {
+                fbreak;
+            }
+        }
+
         origin_field =
-            "o=" username >save_begin_1 %{ sdp->origin->username = osdp_copy(begin_1, fpc); } " "
+            "o=" %new_origin
+            username >save_begin_1 %{ sdp->origin->username = osdp_copy(begin_1, fpc); } " "
             sess_id >{ sdp->origin->session_id = 0; } @{ sdp->origin->session_id = sdp->origin->session_id * 10 + (uint64_t)fcd; } " "
             sess_version >{ sdp->origin->session_version = 0; } @{ sdp->origin->session_version = sdp->origin->session_version * 10 + (uint64_t)fcd; } " "
             nettype >save_begin_1 %{ sdp->origin->network_type = osdp_copy(begin_1, fpc); } " "
@@ -204,12 +256,14 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
 
         session_description =
             proto_version
-            origin_field >{ sdp->origin = osdp_realloc(NULL, sizeof(struct osdp_origin)); }
+            origin_field
             session_name_field
             information_field
             uri_field
             email_fields
             phone_fields
+            connection_field
+            bandwidth_fields
             ;
 
         main :=
@@ -275,12 +329,18 @@ osdp_reset(struct osdp_session_descr* sdp)
     sdp->phones = NULL;
     sdp->phones_size = 0;
 
-    /* TODO */
-    sdp->connection = NULL;
+    if (sdp->connection != NULL) {
+        osdp_free(sdp->connection->network_type);
+        osdp_free(sdp->connection->address_type);
+        osdp_free(sdp->connection->address);
+        osdp_free(sdp->connection);
+        sdp->connection = NULL;
+    }
 
     for (i = 0; i < sdp->bandwidths_size; ++i) {
-        /* TODO */
+        osdp_free(sdp->bandwidths[i].type);
     }
+    osdp_free(sdp->bandwidths);
     sdp->bandwidths = NULL;
     sdp->bandwidths_size = 0;
 
