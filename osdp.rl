@@ -36,7 +36,7 @@ void (*osdp_free)(void*) = free;
 void* (*osdp_realloc)(void*, size_t) = realloc;
 
 static char*
-osdp_mkstr(const char* begin, const char* end)
+osdp_copy(const char* begin, const char* end)
 {
     size_t size = (size_t)(end - begin);
     char* result;
@@ -70,11 +70,11 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
     const char* eof = pe;
     int cs;
 
-    const char* aux = NULL;
+    const char* begin_1 = NULL;
+    const char* begin_2 = NULL;
+    const char* end_1 = NULL;
+    const char* end_2 = NULL;
     int ok = 0;
-
-    size_t new_sz;
-    void* new_ptr;
 
     struct osdp_email* emails_back;
     struct osdp_phone* phones_back;
@@ -83,7 +83,10 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
 #define fcd (*p - '0')
 
     %%{
-        action save_aux { aux = fpc; }
+        action save_begin_1 { begin_1 = fpc; }
+        action save_begin_2 { begin_2 = fpc; }
+        action save_end_1 { end_1 = fpc; }
+        action save_end_2 { end_2 = fpc; }
 
         crlf =
             ("\n" | "\r\n");
@@ -117,14 +120,22 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
             [^\0\r\n];
 
         phone_number =
-            (phone >save_aux %{ phones_back->number = osdp_mkstr(aux, fpc); } " "* "(" email_safe+ >save_aux %{ phones_back->name = osdp_mkstr(aux, fpc); } ")") |
-            (email_safe+ >save_aux %{ phones_back->name = osdp_mkstr(aux, fpc); } "<" phone >save_aux %{ phones_back->number = osdp_mkstr(aux, fpc); } ">") |
-            phone >save_aux %{ phones_back->number = osdp_mkstr(aux, fpc); };
+            (phone >save_begin_1 %save_end_1 " "* "(" email_safe+ >save_begin_2 %save_end_2 ")")
+             %{ phones_back->number = osdp_copy(begin_1, end_1);
+                phones_back->name = osdp_copy(begin_2, end_2); } |
+            (email_safe+ >save_begin_2 %save_end_2 " "+ "<" phone >save_begin_1 %save_end_1 ">")
+             %{ phones_back->number = osdp_copy(begin_1, end_1);
+                phones_back->name = osdp_copy(begin_2, end_2); } |
+            phone >save_begin_1 %{ phones_back->number = osdp_copy(begin_1, fpc); };
 
         email_address =
-            (addr_spec >save_aux %{ emails_back->address = osdp_mkstr(aux, fpc); } " "+ "(" email_safe+ >save_aux %{ emails_back->name = osdp_mkstr(aux, fpc); } ")") |
-            (email_safe+ >save_aux %{ emails_back->name = osdp_mkstr(aux, fpc); } " "+ "<" addr_spec >save_aux %{ emails_back->address = osdp_mkstr(aux, fpc); } ">") |
-            addr_spec >save_aux %{ emails_back->address = osdp_mkstr(aux, fpc); };
+            (addr_spec >save_begin_1 %save_end_1 " "+ "(" email_safe+ >save_begin_2 %save_end_2 ")")
+             %{ emails_back->address = osdp_copy(begin_1, end_1);
+                emails_back->name = osdp_copy(begin_2, end_2); } |
+            (email_safe+ >save_begin_2 %save_end_2 " "+ "<" addr_spec >save_begin_1 %save_end_1 ">")
+             %{ emails_back->address = osdp_copy(begin_1, end_1);
+                emails_back->name = osdp_copy(begin_2, end_2); } |
+            addr_spec >save_begin_1 %{ emails_back->address = osdp_copy(begin_1, fpc); };
 
 
         # FIXME
@@ -143,7 +154,9 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
 
         phone_fields =
             ("p=" phone_number >{
-                new_sz = sdp->phones_size + 1;
+                size_t new_sz = sdp->phones_size + 1;
+                void* new_ptr;
+
                 new_ptr = osdp_realloc(sdp->phones, new_sz * sizeof(struct osdp_phone));
                 if (new_ptr != NULL) {
                     sdp->phones = new_ptr;
@@ -156,7 +169,9 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
 
         email_fields =
             ("e=" email_address >{
-                new_sz = sdp->emails_size + 1;
+                size_t new_sz = sdp->emails_size + 1;
+                void* new_ptr;
+
                 new_ptr = osdp_realloc(sdp->emails, new_sz * sizeof(struct osdp_email));
                 if (new_ptr != NULL) {
                     sdp->emails = new_ptr;
@@ -168,21 +183,21 @@ osdp_parse(struct osdp_session_descr* sdp, const char* str, size_t sz)
             } crlf)*;
 
         uri_field =
-            ("u=" uri >save_aux %{ sdp->uri = osdp_mkstr(aux, fpc); } crlf)?;
+            ("u=" uri >save_begin_1 %{ sdp->uri = osdp_copy(begin_1, fpc); } crlf)?;
 
         information_field =
-            ("i=" text >save_aux %{ sdp->information = osdp_mkstr(aux, fpc); } crlf)?;
+            ("i=" text >save_begin_1 %{ sdp->information = osdp_copy(begin_1, fpc); } crlf)?;
 
         session_name_field =
-            "s=" text >save_aux %{ sdp->name = osdp_mkstr(aux, fpc); } crlf;
+            "s=" text >save_begin_1 %{ sdp->name = osdp_copy(begin_1, fpc); } crlf;
 
         origin_field =
-            "o=" username >save_aux %{ sdp->origin->username = osdp_mkstr(aux, fpc); } " "
+            "o=" username >save_begin_1 %{ sdp->origin->username = osdp_copy(begin_1, fpc); } " "
             sess_id >{ sdp->origin->session_id = 0; } @{ sdp->origin->session_id = sdp->origin->session_id * 10 + (uint64_t)fcd; } " "
             sess_version >{ sdp->origin->session_version = 0; } @{ sdp->origin->session_version = sdp->origin->session_version * 10 + (uint64_t)fcd; } " "
-            nettype >save_aux %{ sdp->origin->network_type = osdp_mkstr(aux, fpc); } " "
-            addrtype >save_aux %{ sdp->origin->address_type = osdp_mkstr(aux, fpc); } " "
-            unicast_address >save_aux %{ sdp->origin->address = osdp_mkstr(aux, fpc); } crlf;
+            nettype >save_begin_1 %{ sdp->origin->network_type = osdp_copy(begin_1, fpc); } " "
+            addrtype >save_begin_1 %{ sdp->origin->address_type = osdp_copy(begin_1, fpc); } " "
+            unicast_address >save_begin_1 %{ sdp->origin->address = osdp_copy(begin_1, fpc); } crlf;
 
         proto_version =
             "v=" digit+ >{ sdp->protocol_version = 0; } @{ sdp->protocol_version = sdp->protocol_version * 10 + fcd; } crlf;
@@ -248,6 +263,7 @@ osdp_reset(struct osdp_session_descr* sdp)
         osdp_free(sdp->emails[i].address);
         osdp_free(sdp->emails[i].name);
     }
+    osdp_free(sdp->emails);
     sdp->emails = NULL;
     sdp->emails_size = 0;
 
@@ -255,6 +271,7 @@ osdp_reset(struct osdp_session_descr* sdp)
         osdp_free(sdp->phones[i].number);
         osdp_free(sdp->phones[i].name);
     }
+    osdp_free(sdp->phones);
     sdp->phones = NULL;
     sdp->phones_size = 0;
 
