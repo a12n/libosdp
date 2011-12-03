@@ -87,6 +87,19 @@ print_session_descr(const struct osdp_session_descr* sdp)
                    i, sdp->time_zones->offsets[i]);
         }
     }
+    if (sdp->key != NULL) {
+        printf("key.method: \"%s\"\n"
+               "key.value: \"%s\"\n",
+               sdp->key->method,
+               sdp->key->value);
+    }
+    for (i = 0; i < sdp->attributes_size; ++i) {
+        printf("attributes[%d].name: \"%s\"\n"
+               "attributes[%d].value: \"%s\"\n",
+               i, sdp->attributes[i].name,
+               i, sdp->attributes[i].value);
+    }
+    /* TODO: Print media descrs. */
 }
 
 int
