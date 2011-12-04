@@ -110,12 +110,10 @@ main(void)
     char str[4096];
     size_t size;
 
-    struct osdp_session_descr sdp;
+    struct osdp_session_descr sdp = OSDP_SESSION_DESCR_INIT;
     int error;
 
     size = fread(str, 1, sizeof(str), stdin);
-
-    osdp_reset_session_descr(&sdp);
     error = osdp_parse_session_descr(&sdp, str, size);
     if (error < 0) {
         warnx(strerror(-error));
