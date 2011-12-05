@@ -106,6 +106,7 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
     const char* begin[4];
     const char* end[4];
 
+    struct osdp_bandwidth* current_bandwidth = NULL;
     struct osdp_connection* current_connection = NULL;
     struct osdp_email* current_email = NULL;
     struct osdp_media_descr* current_media_descr = NULL;
@@ -302,6 +303,38 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
             (multicast_address | unicast_address >{ begin[0] = fpc; }
                                                  %{ current_connection->address = osdp_copy(begin[0], fpc); }) crlf;
 
+        action create_bandwidth {
+            current_bandwidth = NULL;
+            if (current_media_descr != NULL) {
+                if (osdp_resize((void**)&current_media_descr->bandwidths,
+                                &current_media_descr->n_bandwidths,
+                                sizeof(struct osdp_bandwidth)) != NULL)
+                {
+                    current_bandwidth = current_media_descr->bandwidths + (current_media_descr->n_bandwidths - 1);
+                }
+            } else {
+                if (osdp_resize((void**)&sdp->bandwidths,
+                                &sdp->n_bandwidths,
+                                sizeof(struct osdp_bandwidth)) != NULL)
+                {
+                    current_bandwidth = sdp->bandwidths + (sdp->n_bandwidths - 1);
+                }
+            }
+            if (current_bandwidth != NULL) {
+                memset(current_bandwidth, 0, sizeof(struct osdp_bandwidth));
+            } else {
+                fbreak;
+            }
+        }
+
+        bandwidth_field =
+            "b=" %create_bandwidth
+            token >{ begin[0] = fpc; }
+                  %{ current_bandwidth->type = osdp_copy(begin[0], fpc); } ":"
+            digit+ >{ current_bandwidth->value = 0; }
+                   @{ OSDP_ADD_DIGIT(current_bandwidth->value); }
+            crlf;
+
         session_descr =
             protocol_version_field
             origin_field
@@ -310,7 +343,8 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
             uri_field?
             email_field*
             phone_field*
-            connection_field?;
+            connection_field?
+            bandwidth_field*;
 
         main :=
             session_descr;
