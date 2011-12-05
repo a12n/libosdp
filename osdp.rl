@@ -29,6 +29,12 @@
 
 #include "osdp.h"
 
+#define OSDP_ADD_DIGIT(x_)                      \
+    x_ = x_ * 10 + (*p - '0')
+
+#define OSDP_CREATE(type_)                      \
+    osdp_calloc(1, sizeof(type_))
+
 #define OSDP_FREE_ARRAY(ptr_, n_)                \
     if (ptr_ != NULL) {                          \
         size_t i_;                               \
@@ -56,36 +62,38 @@
 
 void (*osdp_free)(void*) = free;
 
+void* (*osdp_calloc)(size_t, size_t) = calloc;
+
 void* (*osdp_realloc)(void*, size_t) = realloc;
 
-/* static char* */
-/* osdp_copy(const char* begin, const char* end) */
-/* { */
-/*     size_t size = (size_t)(end - begin); */
-/*     char* result; */
-/*  */
-/*     result = osdp_realloc(NULL, size + 1); */
-/*     if (result != NULL) { */
-/*         memcpy(result, begin, size); */
-/*         result[size] = '\0'; */
-/*     } */
-/*  */
-/*     return result; */
-/* } */
-/*  */
-/* static void* */
-/* osdp_resize(void** ptr, size_t* n, size_t new_n, size_t size) */
-/* { */
-/*     void* new_ptr; */
-/*  */
-/*     new_ptr = osdp_realloc(ptr, new_n * size); */
-/*     if (new_ptr != NULL) { */
-/*         *ptr = new_ptr; */
-/*         *n = new_n; */
-/*     } */
-/*  */
-/*     return new_ptr; */
-/* } */
+static char*
+osdp_copy(const char* begin, const char* end)
+{
+    size_t size = (size_t)(end - begin);
+    char* result;
+
+    result = osdp_realloc(NULL, size + 1);
+    if (result != NULL) {
+        memcpy(result, begin, size);
+        result[size] = '\0';
+    }
+
+    return result;
+}
+
+static void*
+osdp_resize(void** ptr, size_t* n, size_t size)
+{
+    void* new_ptr;
+
+    size *= (*n + 1);
+    new_ptr = osdp_realloc(*ptr, size);
+    if (new_ptr != NULL) {
+        *ptr = new_ptr;
+        *n += 1;
+    }
+    return new_ptr;
+}
 
 int
 osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t sz)
@@ -95,20 +103,217 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
     const char* eof = pe;
     int cs;
 
-    const char* begin[8];
-    const char* end[8];
+    const char* begin[4];
+    const char* end[4];
 
-    int ok = 0;
+    struct osdp_connection* current_connection = NULL;
+    struct osdp_email* current_email = NULL;
+    struct osdp_media_descr* current_media_descr = NULL;
+    struct osdp_phone* current_phone = NULL;
 
     errno = 0;
 
     %%{
-        # TODO
-        session_description =
-            any*;
+        crlf =
+            "\r\n" | "\n";
+
+        text =
+            [^\0\r\n]+;
+
+        token =
+            [!#$%&´*+\-.0-9A-Z^_`a-z]+;
+
+
+
+
+        decimal_octet =
+            digit |
+            ([1-9] digit) |
+            ("1" digit{2}) |
+            ("2" [01234] digit) |
+            ("25" [012345]);
+
+        hex_4 =
+            xdigit{1,4};
+
+        hex_seq =
+            hex_4 (":" hex_4)*;
+
+        hex_part =
+            hex_seq | hex_seq "::" hex_seq? | "::" hex_seq?;
+
+        ip4_address =
+            decimal_octet ("." decimal_octet){3};
+
+        ip6_address =
+            hex_part (":" ip4_address)?;
+
+        ttl =
+            ([1-9] digit{,2}) | "0";
+
+        n_addresses =
+            "/" ([1-9] digit*) >{ current_connection->n_addresses = 0; }
+                               @{ OSDP_ADD_DIGIT(current_connection->n_addresses); };
+
+        ip4_multicast =
+            ((("22" [456789]) | ("23" digit)) ("." decimal_octet){3})
+              >{ begin[0] = fpc; }
+              %{ current_connection->address = osdp_copy(begin[0], fpc); }
+            "/" ttl >{ current_connection->ttl = 0; }
+                    @{ OSDP_ADD_DIGIT(current_connection->ttl); }
+                    n_addresses?;
+
+        ip6_multicast =
+            hex_part >{ begin[0] = fpc; }
+                     %{ current_connection->address = osdp_copy(begin[0], fpc); }
+            n_addresses?;
+
+        fqdn =
+            [\-.0-9A-Za-z]{4,};
+
+        multicast_address =
+            ip4_multicast | ip6_multicast | fqdn;
+
+        unicast_address =
+            ip4_address | ip6_address | fqdn;
+
+
+
+
+        email_safe =
+            [^\0\r\n()<>];
+
+        # FIXME -- Parse email?
+        email_address =
+            graph+ "@" graph+;
+
+        phone_number =
+            "+"? digit [\- 0-9]+;
+
+        email =
+            (email_address >{ begin[0] = fpc; } %{ end[0] = fpc; } " "+ "(" email_safe+ >{ begin[1] = fpc; } %{ end[1] = fpc; } ")")
+             %{ current_email->address = osdp_copy(begin[0], end[0]);
+                current_email->name = osdp_copy(begin[1], end[1]); } |
+            (email_safe+ >{ begin[1] = fpc; } %{ end[1] = fpc; } " "+ "<" email_address >{ begin[0] = fpc; } %{ end[0] = fpc; } ">")
+             %{ current_email->address = osdp_copy(begin[0], end[0]);
+                current_email->name = osdp_copy(begin[1], end[1]); } |
+            email_address >{ begin[0] = fpc; } %{ current_email->address = osdp_copy(begin[0], fpc); };
+
+        phone =
+            (phone_number >{ begin[0] = fpc; } %{ end[0] = fpc; } " "+ "(" email_safe+ >{ begin[1] = fpc; } %{ end[1] = fpc; } ")")
+            %{ current_phone->number = osdp_copy(begin[0], end[0]);
+                current_phone->name = osdp_copy(begin[1], end[1]); } |
+            (email_safe+ >{ begin[1] = fpc; } %{ end[1] = fpc; } " "+ "<" phone_number >{ begin[0] = fpc; } %{ end[0] = fpc; } ">")
+             %{ current_phone->number = osdp_copy(begin[0], end[0]);
+                current_phone->name = osdp_copy(begin[1], end[1]); } |
+            phone_number >{ begin[0] = fpc; } %{ current_phone->number = osdp_copy(begin[0], fpc); };
+
+
+
+
+
+        protocol_version_field =
+            "v=" digit+ >{ sdp->protocol_version = 0; } @{ OSDP_ADD_DIGIT(sdp->protocol_version); } crlf;
+
+        action create_origin {
+            assert(sdp->origin == NULL);
+            sdp->origin = OSDP_CREATE(struct osdp_origin);
+            if (sdp->origin == NULL) {
+                fbreak;
+            }
+        }
+
+        origin_field =
+            ("o=" %create_origin
+             graph+ >{ begin[0] = fpc; } %{ end[0] = fpc; } " "
+             digit+ >{ sdp->origin->session_id = 0; } @{ OSDP_ADD_DIGIT(sdp->origin->session_id); } " "
+             digit+ >{ sdp->origin->session_version = 0; } @{ OSDP_ADD_DIGIT(sdp->origin->session_version); } " "
+             token >{ begin[1] = fpc; } %{ end[1] = fpc; } " "
+             token >{ begin[2] = fpc; } %{ end[2] = fpc; } " "
+             unicast_address >{ begin[3] = fpc; } %{ end[3] = fpc; }
+             crlf) %{ sdp->origin->username = osdp_copy(begin[0], end[0]);
+                      sdp->origin->network_type = osdp_copy(begin[1], end[1]);
+                      sdp->origin->address_type = osdp_copy(begin[2], end[2]);
+                      sdp->origin->address = osdp_copy(begin[3], end[3]); };
+
+        name_field =
+            "s=" text >{ begin[0] = fpc; } %{ sdp->name = osdp_copy(begin[0], fpc); } crlf;
+
+        information_field =
+            "i=" text >{ begin[0] = fpc; }
+                      %{ if (current_media_descr != NULL) {
+                             current_media_descr->information = osdp_copy(begin[0], fpc);
+                         } else {
+                             sdp->information = osdp_copy(begin[0], fpc);
+                         } } crlf;
+
+        # TODO -- Do URI parsing?
+        uri_field =
+            "u=" text >{ begin[0] = fpc; } %{ sdp->uri = osdp_copy(begin[0], fpc); } crlf;
+
+        action create_email {
+            if (osdp_resize((void**)&sdp->emails, &sdp->n_emails, sizeof(struct osdp_email)) != NULL) {
+                current_email = sdp->emails + (sdp->n_emails - 1);
+                memset(current_email, 0, sizeof(struct osdp_email));
+            } else {
+                fbreak;
+            }
+        }
+
+        email_field =
+            "e=" %create_email email crlf;
+
+        action create_phone {
+            if (osdp_resize((void**)&sdp->phones, &sdp->n_phones, sizeof(struct osdp_phone)) != NULL) {
+                current_phone = sdp->phones + (sdp->n_phones - 1);
+                memset(current_phone, 0, sizeof(struct osdp_phone));
+            } else {
+                fbreak;
+            }
+        }
+
+        phone_field =
+            "p=" %create_phone phone crlf;
+
+        action create_connection {
+            current_connection = NULL;
+            if (current_media_descr != NULL) {
+                if (osdp_resize((void**)&current_media_descr->connections,
+                                &current_media_descr->n_connections,
+                                sizeof(struct osdp_connection)) != NULL)
+                {
+                    current_connection = current_media_descr->connections + (current_media_descr->n_connections - 1);
+                    memset(current_media_descr, 0, sizeof(struct osdp_connection));
+                }
+            } else {
+                assert(sdp->connection == NULL);
+                sdp->connection = OSDP_CREATE(struct osdp_connection);
+                current_connection = sdp->connection;
+            }
+            if (current_connection == NULL) {
+                fbreak;
+            }
+        }
+
+        connection_field =
+            "c=" %create_connection
+            token >{ begin[0] = fpc; } %{ current_connection->network_type = osdp_copy(begin[0], fpc); } " "
+            token >{ begin[0] = fpc; } %{ current_connection->address_type = osdp_copy(begin[0], fpc); } " "
+            (multicast_address | unicast_address >{ begin[0] = fpc; }
+                                                 %{ current_connection->address = osdp_copy(begin[0], fpc); }) crlf;
+
+        session_descr =
+            protocol_version_field
+            origin_field
+            name_field
+            information_field?
+            uri_field?
+            email_field*
+            phone_field*
+            connection_field?;
 
         main :=
-            session_description %{ ok = 1; };
+            session_descr;
     }%%
 
     %% write init;
@@ -120,7 +325,7 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
     }
 
     /* Parser error, return position. */
-    if (!ok) {
+    if (cs < osdp_first_final) {
         return (p - str) + 1;
     }
 
@@ -231,6 +436,7 @@ osdp_reset_media_descr(struct osdp_media_descr* media_descr)
     }
 
     osdp_reset_media(media_descr->media);
+    osdp_free(media_descr->media);
     media_descr->media = NULL;
 
     osdp_free(media_descr->information);
@@ -245,6 +451,7 @@ osdp_reset_media_descr(struct osdp_media_descr* media_descr)
                      osdp_reset_bandwidth);
 
     osdp_reset_key(media_descr->key);
+    osdp_free(media_descr->key);
     media_descr->key = NULL;
 
     OSDP_RESET_ARRAY(media_descr->attributes,
@@ -316,6 +523,7 @@ osdp_reset_session_descr(struct osdp_session_descr* session_descr)
     session_descr->protocol_version = -1;
 
     osdp_reset_origin(session_descr->origin);
+    osdp_free(session_descr->origin);
     session_descr->origin = NULL;
 
     osdp_free(session_descr->name);
@@ -336,6 +544,7 @@ osdp_reset_session_descr(struct osdp_session_descr* session_descr)
                      osdp_reset_phone);
 
     osdp_reset_connection(session_descr->connection);
+    osdp_free(session_descr->connection);
     session_descr->connection = NULL;
 
     OSDP_RESET_ARRAY(session_descr->bandwidths,
@@ -351,6 +560,7 @@ osdp_reset_session_descr(struct osdp_session_descr* session_descr)
     session_descr->n_time_zones = 0;
 
     osdp_reset_key(session_descr->key);
+    osdp_free(session_descr->key);
     session_descr->key = NULL;
 
     OSDP_RESET_ARRAY(session_descr->attributes,

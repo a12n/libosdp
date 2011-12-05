@@ -236,6 +236,8 @@ struct osdp_time_zone
 
 extern void (*osdp_free)(void*);
 
+extern void* (*osdp_calloc)(size_t, size_t);
+
 extern void* (*osdp_realloc)(void*, size_t);
 
 
