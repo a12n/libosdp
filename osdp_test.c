@@ -100,6 +100,56 @@ print_session_descr(const struct osdp_session_descr* sdp)
                i, sdp->attributes[i].value);
     }
     /* TODO: Print media descrs. */
+    for (i = 0; i < sdp->n_media_descrs; ++i) {
+        printf("media_descrs[%d].media.type: \"%s\"\n"
+               "media_descrs[%d].media.port: %d\n"
+               "media_descrs[%d].media.n_ports: %d\n"
+               "media_descrs[%d].media.protocol: \"%s\"\n",
+               i, sdp->media_descrs[i].media->type,
+               i, sdp->media_descrs[i].media->port,
+               i, sdp->media_descrs[i].media->n_ports,
+               i, sdp->media_descrs[i].media->protocol);
+        for (j = 0; j < sdp->media_descrs[i].media->n_formats; ++j) {
+            printf("media_descrs[%d].media.formats[%d]: \"%s\"\n",
+                   i, j, sdp->media_descrs[i].media->formats[j]);
+        }
+        printf("media_descrs[%d].information: \"%s\"\n",
+               i, sdp->media_descrs[i].information);
+        for (j = 0; j < sdp->media_descrs[i].n_connections; ++j) {
+            /* FIXME: Duplicates connection printing. */
+            printf("media_descrs[%d].connections[%d].network_type: \"%s\"\n"
+                   "media_descrs[%d].connections[%d].address_type: \"%s\"\n"
+                   "media_descrs[%d].connections[%d].address: \"%s\"\n"
+                   "media_descrs[%d].connections[%d].ttl: %d\n"
+                   "media_descrs[%d].connections[%d].n_addresses: %d\n",
+                   i, j, sdp->media_descrs[i].connections[j].network_type,
+                   i, j, sdp->media_descrs[i].connections[j].address_type,
+                   i, j, sdp->media_descrs[i].connections[j].address,
+                   i, j, sdp->media_descrs[i].connections[j].ttl,
+                   i, j, sdp->media_descrs[i].connections[j].n_addresses);
+        }
+        for (j = 0; j < sdp->media_descrs[i].n_bandwidths; ++j) {
+            /* FIXME: Duplicates bandwidths printing. */
+            printf("media_descrs[%d].bandwidths[%d].type: \"%s\"\n"
+                   "media_descrs[%d].bandwidths[%d].value: %d\n",
+                   i, j, sdp->media_descrs[i].bandwidths[j].type,
+                   i, j, sdp->media_descrs[i].bandwidths[j].value);
+        }
+        if (sdp->media_descrs[i].key != NULL) {
+            /* FIXME: Duplicates key printing. */
+            printf("media_descrs[%d].key.method: \"%s\"\n"
+                   "media_descrs[%d].key.value: \"%s\"\n",
+                   i, sdp->media_descrs[i].key->method,
+                   i, sdp->media_descrs[i].key->value);
+        }
+        for (j = 0; j < sdp->media_descrs[i].n_attributes; ++j) {
+            /* FIXME: Duplicates attributes printing. */
+            printf("media_descrs[%d].attributes[%d].name: \"%s\"\n"
+                   "media_descrs[%d].attributes[%d].value: \"%s\"\n",
+                   i, j, sdp->media_descrs[i].attributes[j].name,
+                   i, j, sdp->media_descrs[i].attributes[j].value);
+        }
+    }
 }
 
 int
