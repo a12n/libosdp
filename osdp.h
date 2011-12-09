@@ -241,7 +241,21 @@ extern void* (*osdp_calloc)(size_t, size_t);
 extern void* (*osdp_realloc)(void*, size_t);
 
 
-/* Allowed after osdp_reset_session_descr. */
+/**
+ * @~english
+ *
+ * @brief Parses SDP message from buffer. Session description struct
+ * must be initialized with OSDP_SESSION_DESCR_INIT or with
+ * osdp_reset_session_descr if it is reused.
+ *
+ * @param sdp Session description structure.
+ * @param str Pointer to input string.
+ * @param sz Length of input string.
+ *
+ * @return Returns zero on success. In case of system error, minus
+ * errno value will be returned (e.g. -ENOMEM). Returns positive
+ * offset into the input string in case of a syntax error.
+ */
 int
 osdp_parse_session_descr(struct osdp_session_descr*, const char*, size_t);
 
