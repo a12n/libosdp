@@ -108,6 +108,7 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
     int factor;
 
     int* current_offset = NULL;
+    struct osdp_attribute* current_attribute = NULL;
     struct osdp_bandwidth* current_bandwidth = NULL;
     struct osdp_connection* current_connection = NULL;
     struct osdp_email* current_email = NULL;
@@ -130,8 +131,9 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
         token =
             [!#$%&´*+\-.0-9A-Z^_`a-z]+;
 
+        # TODO -- Parse time (it should 'be "0" | [1-9] digit{9,}')?
         time =
-            ([1-9] digit{9,}) | "0";
+            digit+;
 
         # TODO -- Parse URI?
         uri =
@@ -446,6 +448,38 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
               uri >{ begin[1] = fpc; } %{ current_key->value = osdp_copy(begin[1], fpc); }))
             crlf;
 
+        action create_attribute {
+            current_attribute = NULL;
+            if (current_media_descr != NULL) {
+                if (osdp_resize((void**)&current_media_descr->attributes,
+                                &current_media_descr->n_attributes,
+                                sizeof(struct osdp_attribute)) != NULL)
+                {
+                    current_attribute = current_media_descr->attributes + (current_media_descr->n_attributes - 1);
+                }
+            } else {
+                if (osdp_resize((void**)&sdp->attributes,
+                                &sdp->n_attributes,
+                                sizeof(struct osdp_attribute)) != NULL)
+                {
+                    current_attribute = sdp->attributes + (sdp->n_attributes - 1);
+                }
+            }
+            if (current_attribute != NULL) {
+                memset(current_attribute, 0, sizeof(struct osdp_attribute));
+            } else {
+                fbreak;
+            }
+        }
+
+        attribute_field =
+            "a=" %create_attribute
+            token >{ begin[0] = fpc; }
+                  %{ current_attribute->name = osdp_copy(begin[0], fpc); }
+            (":" text >{ begin[1] = fpc; }
+                      %{ current_attribute->value = osdp_copy(begin[1], fpc); })?
+            crlf;
+
         session_descr =
             protocol_version_field
             origin_field
@@ -458,7 +492,8 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
             bandwidth_field*
             time_field+
             time_zone_field?
-            key_field?;
+            key_field?
+            attribute_field*;
 
         main :=
             session_descr;
