@@ -107,6 +107,7 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
     const char* end[4];
     int factor;
 
+    char** current_format = NULL;
     int* current_offset = NULL;
     struct osdp_attribute* current_attribute = NULL;
     struct osdp_bandwidth* current_bandwidth = NULL;
@@ -227,6 +228,41 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
             phone_number >{ begin[0] = fpc; } %{ current_phone->number = osdp_copy(begin[0], fpc); };
 
 
+
+        action create_media_descr {
+            if (osdp_resize((void**)&sdp->media_descrs, &sdp->n_media_descrs, sizeof(struct osdp_media_descr)) != NULL) {
+                current_media_descr = sdp->media_descrs + (sdp->n_media_descrs - 1);
+                memset(current_media_descr, 0, sizeof(struct osdp_media_descr));
+
+                current_media_descr->media = OSDP_CREATE(struct osdp_media);
+                if (current_media_descr->media != NULL) {
+                    memset(current_media_descr->media, 0, sizeof(struct osdp_media));
+                } else {
+                    fbreak;
+                }
+            } else {
+                fbreak;
+            }
+        }
+
+        action create_media_format {
+            if (osdp_resize((void**)&current_media_descr->media->formats, &current_media_descr->media->n_formats, sizeof(char*)) != NULL) {
+                current_format = current_media_descr->media->formats + (current_media_descr->media->n_formats - 1);
+            } else {
+                fbreak;
+            }
+        }
+
+        media_field =
+            "m=" %create_media_descr
+            token >{ begin[0] = fpc; }
+                  %{ current_media_descr->media->type = osdp_copy(begin[0], fpc); } " "
+            digit+ @{ OSDP_ADD_DIGIT(current_media_descr->media->port); }
+              ("/" ([1-9] digit*) @{ OSDP_ADD_DIGIT(current_media_descr->media->n_ports); })? " "
+            (token ("/" token)*) >{ begin[1] = fpc; }
+                                 %{ current_media_descr->media->protocol = osdp_copy(begin[1], fpc); }
+            (" " %create_media_format token >{ begin[0] = fpc; } %{ *current_format = osdp_copy(begin[0], fpc); })+
+            crlf;
 
 
 
@@ -480,6 +516,14 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
                       %{ current_attribute->value = osdp_copy(begin[1], fpc); })?
             crlf;
 
+        media_descr_field =
+            media_field
+            information_field?
+            connection_field*
+            bandwidth_field*
+            key_field?
+            attribute_field*;
+
         session_descr =
             protocol_version_field
             origin_field
@@ -493,7 +537,8 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
             time_field+
             time_zone_field?
             key_field?
-            attribute_field*;
+            attribute_field*
+            media_descr_field*;
 
         main :=
             session_descr;
