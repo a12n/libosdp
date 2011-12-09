@@ -105,12 +105,18 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
 
     const char* begin[4];
     const char* end[4];
+    int factor;
 
+    int* current_offset = NULL;
     struct osdp_bandwidth* current_bandwidth = NULL;
     struct osdp_connection* current_connection = NULL;
     struct osdp_email* current_email = NULL;
+    struct osdp_key* current_key = NULL;
     struct osdp_media_descr* current_media_descr = NULL;
     struct osdp_phone* current_phone = NULL;
+    struct osdp_repeat_time* current_repeat_time = NULL;
+    struct osdp_time* current_time = NULL;
+    struct osdp_time_zone* current_time_zone = NULL;
 
     errno = 0;
 
@@ -124,7 +130,16 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
         token =
             [!#$%&´*+\-.0-9A-Z^_`a-z]+;
 
+        time =
+            ([1-9] digit{9,}) | "0";
 
+        # TODO -- Parse URI?
+        uri =
+            text;
+
+        # TODO -- Parse base64?
+        base64 =
+            text;
 
 
         decimal_octet =
@@ -248,9 +263,8 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
                              sdp->information = osdp_copy(begin[0], fpc);
                          } } crlf;
 
-        # TODO -- Do URI parsing?
         uri_field =
-            "u=" text >{ begin[0] = fpc; } %{ sdp->uri = osdp_copy(begin[0], fpc); } crlf;
+            "u=" uri >{ begin[0] = fpc; } %{ sdp->uri = osdp_copy(begin[0], fpc); } crlf;
 
         action create_email {
             if (osdp_resize((void**)&sdp->emails, &sdp->n_emails, sizeof(struct osdp_email)) != NULL) {
@@ -335,6 +349,103 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
                    @{ OSDP_ADD_DIGIT(current_bandwidth->value); }
             crlf;
 
+        action create_time {
+            if (osdp_resize((void**)&sdp->times, &sdp->n_times, sizeof(struct osdp_time)) != NULL) {
+                current_time = sdp->times + (sdp->n_times - 1);
+                memset(current_time, 0, sizeof(struct osdp_time));
+            } else {
+                fbreak;
+            }
+        }
+
+        action create_repeat_time {
+            if (osdp_resize((void**)&current_time->repeats, &current_time->n_repeats, sizeof(struct osdp_repeat_time)) != NULL) {
+                current_repeat_time = current_time->repeats + (current_time->n_repeats - 1);
+                memset(current_repeat_time, 0, sizeof(struct osdp_repeat_time));
+            } else {
+                fbreak;
+            }
+        }
+
+        action create_repeat_time_offset {
+            if (osdp_resize((void**)&current_repeat_time->offsets, &current_repeat_time->n_offsets, sizeof(int)) != NULL) {
+                current_offset = current_repeat_time->offsets + (current_repeat_time->n_offsets - 1);
+            } else {
+                fbreak;
+            }
+        }
+
+        fixed_len_time_unit =
+            "d" @{ factor = 86400; } |
+            "h" @{ factor = 3600; } |
+            "m" @{ factor = 60; } |
+            "s" @{ factor = 1; };
+
+        repeat_time_field =
+            "r=" %create_repeat_time
+            ([1-9] digit*) @{ OSDP_ADD_DIGIT(current_repeat_time->interval); }
+                           (fixed_len_time_unit %{ current_repeat_time->interval *= factor; })? " "
+            digit+ @{ OSDP_ADD_DIGIT(current_repeat_time->duration); }
+                   (fixed_len_time_unit %{ current_repeat_time->duration *= factor; })?
+            (" " %create_repeat_time_offset
+             digit+ >{ *current_offset = 0; }
+                    @{ OSDP_ADD_DIGIT(*current_offset); }
+             (fixed_len_time_unit %{ *current_offset *= factor; })?)*
+            crlf;
+
+        time_field =
+            "t=" %create_time
+            time @{ OSDP_ADD_DIGIT(current_time->start); } " "
+            time @{ OSDP_ADD_DIGIT(current_time->stop); }
+            crlf
+            repeat_time_field*;
+
+        action create_time_zone {
+            if (osdp_resize((void**)&sdp->time_zones, &sdp->n_time_zones, sizeof(struct osdp_time_zone)) != NULL) {
+                current_time_zone = sdp->time_zones + (sdp->n_time_zones - 1);
+                memset(current_time_zone, 0, sizeof(struct osdp_time_zone));
+            } else {
+                fbreak;
+            }
+        }
+
+        time_zone_field =
+            "z=" (time >create_time_zone
+                       @{ OSDP_ADD_DIGIT(current_time_zone->adjustment_time); } " "
+                  ("-" %{ factor = -1; })? digit+ >{ current_time_zone->offset = 0; }
+                                                  @{ OSDP_ADD_DIGIT(current_time_zone->offset); }
+                                           (fixed_len_time_unit @{ current_time_zone->offset *= factor; })?)+
+            crlf;
+
+        action create_key {
+            current_key = NULL;
+            if (current_media_descr != NULL) {
+                assert(current_media_descr->key == NULL);
+                current_media_descr->key = OSDP_CREATE(struct osdp_key);
+                current_key = current_media_descr->key;
+            } else {
+                assert(sdp->key == NULL);
+                sdp->key = OSDP_CREATE(struct osdp_key);
+                current_key = sdp->key;
+            }
+            if (current_key != NULL) {
+                memset(current_key, 0, sizeof(struct osdp_key));
+            } else {
+                fbreak;
+            }
+        }
+
+        key_field =
+            "k=" %create_key
+            (("propmpt" >{ begin[0] = fpc; } %{ current_key->method = osdp_copy(begin[0], fpc); }) |
+             ("clear" >{ begin[0] = fpc; } %{ current_key->method = osdp_copy(begin[0], fpc); } ":"
+              text >{ begin[1] = fpc; } %{ current_key->value = osdp_copy(begin[1], fpc); }) |
+             ("base64" >{ begin[0] = fpc; } %{ current_key->method = osdp_copy(begin[0], fpc); } ":"
+              base64 >{ begin[1] = fpc; } %{ current_key->value = osdp_copy(begin[1], fpc); }) |
+             ("uri" >{ begin[0] = fpc; } %{ current_key->method = osdp_copy(begin[0], fpc); } ":"
+              uri >{ begin[1] = fpc; } %{ current_key->value = osdp_copy(begin[1], fpc); }))
+            crlf;
+
         session_descr =
             protocol_version_field
             origin_field
@@ -344,7 +455,10 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
             email_field*
             phone_field*
             connection_field?
-            bandwidth_field*;
+            bandwidth_field*
+            time_field+
+            time_zone_field?
+            key_field?;
 
         main :=
             session_descr;
