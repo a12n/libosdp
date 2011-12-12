@@ -65,57 +65,57 @@ struct osdp_attribute
 
 struct osdp_bandwidth
 {
-    char* type;                 /* {1} */
+    char* type;
 
-    int value;                  /* {1} */
+    int value;
 };
 #define OSDP_BANDWIDTH_INIT                     \
     { NULL, -1 }
 
 struct osdp_connection
 {
-    char* network_type;         /* {1} */
+    char* network_type;
 
-    char* address_type;         /* {1} */
+    char* address_type;
 
-    char* address;              /* {1} */
+    char* address;
 
-    int ttl;                    /* ? -1 */
+    int ttl;
 
-    int n_addresses;            /* ? -1 */
+    int n_addresses;
 };
 #define OSDP_CONNECTION_INIT                    \
     { NULL, NULL, NULL, -1, -1 }
 
 struct osdp_email
 {
-    char* address;              /* {1} */
+    char* address;
 
-    char* name;                 /* ? */
+    char* name;
 };
 #define OSDP_EMAIL_INIT                         \
     { NULL, NULL }
 
 struct osdp_key
 {
-    char* method;               /* {1} */
+    char* method;
 
-    char* value;                /* ? */
+    char* value;
 };
 #define OSDP_KEY_INIT                           \
     { NULL, NULL }
 
 struct osdp_media
 {
-    char* type;                 /* {1} */
+    char* type;
 
-    int port;                   /* {1} */
+    int port;
 
-    int n_ports;                /* ? -1 */
+    int n_ports;
 
-    char* protocol;             /* {1} */
+    char* protocol;
 
-    char** formats;             /* {1,} */
+    char** formats;
     size_t n_formats;
 };
 #define OSDP_MEDIA_INIT                         \
@@ -123,19 +123,19 @@ struct osdp_media
 
 struct osdp_media_descr
 {
-    struct osdp_media* media;   /* {1} */
+    struct osdp_media* media;
 
-    char* information;          /* {1} */
+    char* information;
 
-    struct osdp_connection* connections; /* * */
+    struct osdp_connection* connections;
     size_t n_connections;
 
-    struct osdp_bandwidth* bandwidths; /* * */
+    struct osdp_bandwidth* bandwidths;
     size_t n_bandwidths;
 
-    struct osdp_key* key;       /* ? */
+    struct osdp_key* key;
 
-    struct osdp_attribute* attributes; /* * */
+    struct osdp_attribute* attributes;
     size_t n_attributes;
 };
 #define OSDP_MEDIA_DESCR_INIT                       \
@@ -143,77 +143,77 @@ struct osdp_media_descr
 
 struct osdp_origin
 {
-    char* username;             /* {1} */
+    char* username;
 
-    osdp_uint64_t session_id;        /* {1} */
+    osdp_uint64_t session_id;
 
-    osdp_uint64_t session_version;   /* {1} */
+    osdp_uint64_t session_version;
 
-    char* network_type;         /* {1} */
+    char* network_type;
 
-    char* address_type;         /* {1} */
+    char* address_type;
 
-    char* address;              /* {1} */
+    char* address;
 };
 #define OSDP_ORIGIN_INIT                        \
-    { NULL, 0ULL, 0ULL, NULL, NULL, NULL }
+    { NULL, 0, 0, NULL, NULL, NULL }
 
 struct osdp_phone
 {
-    char* number;               /* {1} */
+    char* number;
 
-    char* name;                 /* ? */
+    char* name;
 };
 #define OSDP_PHONE_INIT                         \
     { NULL, NULL }
 
 struct osdp_repeat_time
 {
-    osdp_uint64_t interval;          /* {1} */
+    osdp_uint64_t interval;
 
-    osdp_uint64_t duration;          /* {1} */
+    osdp_uint64_t duration;
 
-    int* offsets;               /* * */
+    int* offsets;
     size_t n_offsets;
 };
 #define OSDP_REPEAT_TIME_INIT                   \
-    { 0ULL, 0ULL, NULL, 0 }
+    { 0, 0, NULL, 0 }
 
 struct osdp_session_descr
 {
-    int protocol_version;       /* {1} */
+    int protocol_version;
 
-    struct osdp_origin* origin; /* {1} */
+    struct osdp_origin* origin;
 
-    char* name;                 /* {1} */
+    char* name;
 
-    char* information;          /* ? */
+    char* information;
 
-    char* uri;                  /* ? */
+    char* uri;
 
-    struct osdp_email* emails;  /* * */
+    struct osdp_email* emails;
     size_t n_emails;
 
-    struct osdp_phone* phones;  /* * */
+    struct osdp_phone* phones;
     size_t n_phones;
 
-    struct osdp_connection* connection; /* ? */
+    struct osdp_connection* connection;
 
-    struct osdp_bandwidth* bandwidths; /* * */
+    struct osdp_bandwidth* bandwidths;
     size_t n_bandwidths;
 
-    struct osdp_time* times;    /* + */
+    struct osdp_time* times;
     size_t n_times;
 
-    struct osdp_time_zone* time_zones; /* ? */
+    struct osdp_time_zone* time_zones;
     size_t n_time_zones;
 
-    struct osdp_key* key;       /* ? */
+    struct osdp_key* key;
 
-    struct osdp_attribute* attributes; /* * */
+    struct osdp_attribute* attributes;
     size_t n_attributes;
 
-    struct osdp_media_descr* media_descrs; /* * */
+    struct osdp_media_descr* media_descrs;
     size_t n_media_descrs;
 };
 #define OSDP_SESSION_DESCR_INIT                                         \
@@ -222,23 +222,23 @@ struct osdp_session_descr
 
 struct osdp_time
 {
-    osdp_uint64_t start;             /* {1} */
+    osdp_uint64_t start;
 
-    osdp_uint64_t stop;              /* {1} */
+    osdp_uint64_t stop;
 
-    struct osdp_repeat_time* repeats; /* * */
+    struct osdp_repeat_time* repeats;
     size_t n_repeats;
 };
 #define OSDP_TIME_INIT                          \
-    { 0ULL, 0ULL, NULL, 0 }
+    { 0, 0, NULL, 0 }
 
 struct osdp_time_zone
 {
-    osdp_uint64_t adjustment_time;   /* {1} */
-    int offset;                 /* {1} */
+    osdp_uint64_t adjustment_time;
+    int offset;
 };
 #define OSDP_TIME_ZONE_INIT                     \
-    { 0ULL, 0 }
+    { 0, 0 }
 
 
 extern void (*osdp_free)(void*);
