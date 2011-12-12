@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.6)
 project(libosdp)
 set(OSDP_MAJOR_VERSION 0)
 set(OSDP_MINOR_VERSION 5)
-set(OSDP_PATCH_VERSION 1)
+set(OSDP_PATCH_VERSION 3)
 
 find_program(RAGEL_EXECUTABLE NAMES ragel)
 
@@ -36,7 +36,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 set(OSDP_C ${CMAKE_BINARY_DIR}/osdp.c)
 set(OSDP_RL ${CMAKE_SOURCE_DIR}/osdp.rl)
 add_custom_command(
-  COMMAND ${RAGEL_EXECUTABLE} -G2 -o ${OSDP_C} ${OSDP_RL}
+  COMMAND ${RAGEL_EXECUTABLE} -o ${OSDP_C} ${OSDP_RL}
   DEPENDS ${OSDP_RL} OUTPUT ${OSDP_C} VERBATIM)
 set_source_files_properties(${OSDP_C} PROPERTIES GENERATED TRUE)
 add_library(osdp STATIC ${OSDP_C})
