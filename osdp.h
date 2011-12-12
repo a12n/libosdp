@@ -26,12 +26,19 @@
 #ifndef __OSDP_H_INCLUDED__
 #define __OSDP_H_INCLUDED__
 
-/* FIXME */
-#include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
+
+#if defined(_MSC_VER)
+typedef unsigned __int64 osdp_uint64_t;
+#elif defined(__GNUC__)
+#   if defined(__LP64__)
+typedef unsigned long osdp_uint64_t;
+#   else /* defined(__LP64__) */
+typedef unsigned long long osdp_uint64_t;
+#   endif /* defined(__LP64__) */
+#endif /* defined(_MSC_VER) */
 
 struct osdp_attribute;
 struct osdp_bandwidth;
@@ -138,9 +145,9 @@ struct osdp_origin
 {
     char* username;             /* {1} */
 
-    uint64_t session_id;        /* {1} */
+    osdp_uint64_t session_id;        /* {1} */
 
-    uint64_t session_version;   /* {1} */
+    osdp_uint64_t session_version;   /* {1} */
 
     char* network_type;         /* {1} */
 
@@ -162,9 +169,9 @@ struct osdp_phone
 
 struct osdp_repeat_time
 {
-    uint64_t interval;          /* {1} */
+    osdp_uint64_t interval;          /* {1} */
 
-    uint64_t duration;          /* {1} */
+    osdp_uint64_t duration;          /* {1} */
 
     int* offsets;               /* * */
     size_t n_offsets;
@@ -215,9 +222,9 @@ struct osdp_session_descr
 
 struct osdp_time
 {
-    uint64_t start;             /* {1} */
+    osdp_uint64_t start;             /* {1} */
 
-    uint64_t stop;              /* {1} */
+    osdp_uint64_t stop;              /* {1} */
 
     struct osdp_repeat_time* repeats; /* * */
     size_t n_repeats;
@@ -227,7 +234,7 @@ struct osdp_time
 
 struct osdp_time_zone
 {
-    uint64_t adjustment_time;   /* {1} */
+    osdp_uint64_t adjustment_time;   /* {1} */
     int offset;                 /* {1} */
 };
 #define OSDP_TIME_ZONE_INIT                     \
@@ -242,19 +249,17 @@ extern void* (*osdp_realloc)(void*, size_t);
 
 
 /**
- * @~english
+ * Parse Session Description Protocol message from a text buffer.
  *
- * @brief Parses SDP message from buffer. Session description struct
- * must be initialized with OSDP_SESSION_DESCR_INIT or with
- * osdp_reset_session_descr if it is reused.
- *
- * @param sdp Session description structure.
- * @param str Pointer to input string.
- * @param sz Length of input string.
- *
- * @return Returns zero on success. In case of system error, minus
- * errno value will be returned (e.g. -ENOMEM). Returns positive
- * offset into the input string in case of a syntax error.
+ * @param session_descr Pointer to initialized session description
+ * object. It must be initialized with OSDP_SESSION_DESCR_INIT macro
+ * or by call to osdp_reset_session_descr if object is reused.
+ * @param str TODO
+ * @param str_sz TODO
+ * @return Returns 0 on success. In case of system error, -errno value
+ * will be returned (e.g. -ENOMEM). If syntax error is detected,
+ * positive offset (starting from 1) into the input string is
+ * returned.
  */
 int
 osdp_parse_session_descr(struct osdp_session_descr*, const char*, size_t);
@@ -289,6 +294,14 @@ osdp_reset_phone(struct osdp_phone*);
 void
 osdp_reset_repeat_time(struct osdp_repeat_time*);
 
+/**
+ * Reset session description object.
+ *
+ * Frees all memory allocated during osdp_parse_session_descr and
+ * reinitializes session description object.
+ *
+ * @param session_descr Pointer to session description object.
+ */
 void
 osdp_reset_session_descr(struct osdp_session_descr*);
 
