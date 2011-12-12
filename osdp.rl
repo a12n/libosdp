@@ -693,9 +693,9 @@ osdp_reset_origin(struct osdp_origin* origin)
     osdp_free(origin->username);
     origin->username = NULL;
 
-    origin->session_id = 0ULL;
+    origin->session_id = 0;
 
-    origin->session_version = 0ULL;
+    origin->session_version = 0;
 
     osdp_free(origin->network_type);
     origin->network_type = NULL;
@@ -728,9 +728,9 @@ osdp_reset_repeat_time(struct osdp_repeat_time* repeat_time)
         return;
     }
 
-    repeat_time->interval = 0ULL;
+    repeat_time->interval = 0;
 
-    repeat_time->duration = 0ULL;
+    repeat_time->duration = 0;
 
     osdp_free(repeat_time->offsets);
     repeat_time->offsets = NULL;
@@ -803,9 +803,9 @@ osdp_reset_time(struct osdp_time* time)
         return;
     }
 
-    time->start = 0ULL;
+    time->start = 0;
 
-    time->stop = 0ULL;
+    time->stop = 0;
 
     OSDP_RESET_ARRAY(time->repeats,
                      time->n_repeats,
@@ -819,7 +819,7 @@ osdp_reset_time_zone(struct osdp_time_zone* time_zone)
         return;
     }
 
-    time_zone->adjustment_time = 0ULL;
+    time_zone->adjustment_time = 0;
 
     time_zone->offset = 0;
 }
