@@ -32,9 +32,6 @@
 #define OSDP_ADD_DIGIT(x_)                      \
     x_ = x_ * 10 + (*p - '0')
 
-#define OSDP_CREATE(type_)                      \
-    osdp_calloc(1, sizeof(type_))
-
 #define OSDP_FREE_ARRAY(ptr_, n_)                \
     if (ptr_ != NULL) {                          \
         size_t i_;                               \
@@ -234,7 +231,7 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
                 current_media_descr = sdp->media_descrs + (sdp->n_media_descrs - 1);
                 memset(current_media_descr, 0, sizeof(struct osdp_media_descr));
 
-                current_media_descr->media = OSDP_CREATE(struct osdp_media);
+                current_media_descr->media = osdp_calloc(1, sizeof(struct osdp_media));
                 if (current_media_descr->media != NULL) {
                     memset(current_media_descr->media, 0, sizeof(struct osdp_media));
                 } else {
@@ -271,7 +268,7 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
 
         action create_origin {
             assert(sdp->origin == NULL);
-            sdp->origin = OSDP_CREATE(struct osdp_origin);
+            sdp->origin = osdp_calloc(1, sizeof(struct osdp_origin));
             if (sdp->origin == NULL) {
                 fbreak;
             }
@@ -340,7 +337,7 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
                 }
             } else {
                 assert(sdp->connection == NULL);
-                sdp->connection = OSDP_CREATE(struct osdp_connection);
+                sdp->connection = osdp_calloc(1, sizeof(struct osdp_connection));
                 current_connection = sdp->connection;
             }
             if (current_connection == NULL) {
@@ -459,11 +456,11 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
             current_key = NULL;
             if (current_media_descr != NULL) {
                 assert(current_media_descr->key == NULL);
-                current_media_descr->key = OSDP_CREATE(struct osdp_key);
+                current_media_descr->key = osdp_calloc(1, sizeof(struct osdp_key));
                 current_key = current_media_descr->key;
             } else {
                 assert(sdp->key == NULL);
-                sdp->key = OSDP_CREATE(struct osdp_key);
+                sdp->key = osdp_calloc(1, sizeof(struct osdp_key));
                 current_key = sdp->key;
             }
             if (current_key != NULL) {
