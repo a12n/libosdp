@@ -56,9 +56,9 @@ struct osdp_time_zone;
 
 struct osdp_attribute
 {
-    char* name;                 /* {1} */
+    char* name;
 
-    char* value;                /* ? */
+    char* value;
 };
 #define OSDP_ATTRIBUTE_INIT                     \
     { NULL, NULL }
