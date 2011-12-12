@@ -97,12 +97,11 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
 {
     const char* p = str;
     const char* pe = p + sz;
-    const char* eof = pe;
     int cs;
 
-    const char* begin[4];
-    const char* end[4];
-    int factor;
+    const char* begin[4] = { NULL };
+    const char* end[4] = { NULL };
+    int factor = 1;
 
     char** current_format = NULL;
     int* current_offset = NULL;
