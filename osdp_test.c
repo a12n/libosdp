@@ -79,13 +79,11 @@ print_session_descr(const struct osdp_session_descr* sdp)
             }
         }
     }
-    if (sdp->time_zones != NULL) {
-        for (i = 0; i < sdp->n_time_zones; ++i) {
-            printf("time_zones[%d].adjustment_time: %llu\n"
-                   "time_zones[%d].offset: %d\n",
-                   i, sdp->time_zones[i].adjustment_time,
-                   i, sdp->time_zones[i].offset);
-        }
+    for (i = 0; i < sdp->n_time_zones; ++i) {
+        printf("time_zones[%d].adjustment_time: %llu\n"
+               "time_zones[%d].offset: %d\n",
+               i, sdp->time_zones[i].adjustment_time,
+               i, sdp->time_zones[i].offset);
     }
     if (sdp->key != NULL) {
         printf("key.method: \"%s\"\n"
@@ -99,7 +97,6 @@ print_session_descr(const struct osdp_session_descr* sdp)
                i, sdp->attributes[i].name,
                i, sdp->attributes[i].value);
     }
-    /* TODO: Print media descrs. */
     for (i = 0; i < sdp->n_media_descrs; ++i) {
         printf("media_descrs[%d].media.type: \"%s\"\n"
                "media_descrs[%d].media.port: %d\n"
