@@ -200,7 +200,7 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
 
         # FIXME -- Parse email?
         email_address =
-            graph+ "@" graph+;
+            graph+;
 
         phone_number =
             "+"? digit [\- 0-9]+;
