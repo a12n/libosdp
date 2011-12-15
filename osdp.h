@@ -339,6 +339,7 @@ struct osdp_time
 struct osdp_time_zone
 {
     osdp_uint64_t adjustment_time;
+
     int offset;
 };
 #define OSDP_TIME_ZONE_INIT                     \
