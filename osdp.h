@@ -54,6 +54,78 @@ struct osdp_session_descr;
 struct osdp_time;
 struct osdp_time_zone;
 
+
+/**
+ * Parse Session Description Protocol message from a text buffer.
+ *
+ * @param session_descr Pointer to initialized session description
+ * object. It must be initialized with OSDP_SESSION_DESCR_INIT macro
+ * or by call to osdp_reset_session_descr if object is reused.
+ * @param str TODO
+ * @param str_sz TODO
+ * @return Returns 0 on success. In case of system error, -errno value
+ * will be returned (e.g. -ENOMEM). If syntax error is detected,
+ * positive offset (starting from 1) into the input string is
+ * returned.
+ */
+int
+osdp_parse_session_descr(struct osdp_session_descr*, const char*, size_t);
+
+void
+osdp_reset_attribute(struct osdp_attribute*);
+
+void
+osdp_reset_bandwidth(struct osdp_bandwidth*);
+
+void
+osdp_reset_connection(struct osdp_connection*);
+
+void
+osdp_reset_email(struct osdp_email*);
+
+void
+osdp_reset_key(struct osdp_key*);
+
+void
+osdp_reset_media(struct osdp_media*);
+
+void
+osdp_reset_media_descr(struct osdp_media_descr*);
+
+void
+osdp_reset_origin(struct osdp_origin*);
+
+void
+osdp_reset_phone(struct osdp_phone*);
+
+void
+osdp_reset_repeat_time(struct osdp_repeat_time*);
+
+/**
+ * Reset session description object.
+ *
+ * Frees all memory allocated during osdp_parse_session_descr and
+ * reinitializes session description object.
+ *
+ * @param session_descr Pointer to session description object.
+ */
+void
+osdp_reset_session_descr(struct osdp_session_descr*);
+
+void
+osdp_reset_time(struct osdp_time*);
+
+void
+osdp_reset_time_zone(struct osdp_time_zone*);
+
+
+extern void (*osdp_free)(void*);
+
+extern void* (*osdp_calloc)(size_t, size_t);
+
+extern void* (*osdp_realloc)(void*, size_t);
+
+
 struct osdp_attribute
 {
     char* name;
@@ -181,6 +253,38 @@ struct osdp_repeat_time
 
 struct osdp_session_descr
 {
+#ifdef __cplusplus
+    osdp_session_descr() :
+        protocol_version(-1),
+        origin(0),
+        name(0),
+        information(0),
+        uri(0),
+        emails(0),
+        n_emails(0),
+        phones(0),
+        n_phones(0),
+        connection(0),
+        bandwidths(0),
+        n_bandwidths(0),
+        times(0),
+        n_times(0),
+        time_zones(0),
+        n_time_zones(0),
+        key(0),
+        attributes(0),
+        n_attributes(0),
+        media_descrs(0),
+        n_media_descrs(0)
+    {
+    }
+
+    ~osdp_session_descr()
+    {
+        osdp_reset_session_descr(this);
+    }
+#endif /* __cplusplus */
+
     int protocol_version;
 
     struct osdp_origin* origin;
@@ -239,77 +343,6 @@ struct osdp_time_zone
 };
 #define OSDP_TIME_ZONE_INIT                     \
     { 0, 0 }
-
-
-extern void (*osdp_free)(void*);
-
-extern void* (*osdp_calloc)(size_t, size_t);
-
-extern void* (*osdp_realloc)(void*, size_t);
-
-
-/**
- * Parse Session Description Protocol message from a text buffer.
- *
- * @param session_descr Pointer to initialized session description
- * object. It must be initialized with OSDP_SESSION_DESCR_INIT macro
- * or by call to osdp_reset_session_descr if object is reused.
- * @param str TODO
- * @param str_sz TODO
- * @return Returns 0 on success. In case of system error, -errno value
- * will be returned (e.g. -ENOMEM). If syntax error is detected,
- * positive offset (starting from 1) into the input string is
- * returned.
- */
-int
-osdp_parse_session_descr(struct osdp_session_descr*, const char*, size_t);
-
-void
-osdp_reset_attribute(struct osdp_attribute*);
-
-void
-osdp_reset_bandwidth(struct osdp_bandwidth*);
-
-void
-osdp_reset_connection(struct osdp_connection*);
-
-void
-osdp_reset_email(struct osdp_email*);
-
-void
-osdp_reset_key(struct osdp_key*);
-
-void
-osdp_reset_media(struct osdp_media*);
-
-void
-osdp_reset_media_descr(struct osdp_media_descr*);
-
-void
-osdp_reset_origin(struct osdp_origin*);
-
-void
-osdp_reset_phone(struct osdp_phone*);
-
-void
-osdp_reset_repeat_time(struct osdp_repeat_time*);
-
-/**
- * Reset session description object.
- *
- * Frees all memory allocated during osdp_parse_session_descr and
- * reinitializes session description object.
- *
- * @param session_descr Pointer to session description object.
- */
-void
-osdp_reset_session_descr(struct osdp_session_descr*);
-
-void
-osdp_reset_time(struct osdp_time*);
-
-void
-osdp_reset_time_zone(struct osdp_time_zone*);
 
 #ifdef __cplusplus
 } // extern "C"
