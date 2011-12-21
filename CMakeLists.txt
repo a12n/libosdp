@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.6)
 project(libosdp)
 set(OSDP_MAJOR_VERSION 0)
 set(OSDP_MINOR_VERSION 6)
-set(OSDP_PATCH_VERSION 0)
+set(OSDP_PATCH_VERSION 1)
 
 find_program(RAGEL_EXECUTABLE NAMES ragel)
 

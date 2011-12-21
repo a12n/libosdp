@@ -332,7 +332,7 @@ osdp_parse_session_descr(struct osdp_session_descr* sdp, const char* str, size_t
                                 sizeof(struct osdp_connection)) != NULL)
                 {
                     current_connection = current_media_descr->connections + (current_media_descr->n_connections - 1);
-                    memset(current_media_descr, 0, sizeof(struct osdp_connection));
+                    memset(current_connection, 0, sizeof(struct osdp_connection));
                 }
             } else {
                 assert(sdp->connection == NULL);
