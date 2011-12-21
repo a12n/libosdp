@@ -33,12 +33,14 @@ print_session_descr(const struct osdp_session_descr* sdp)
            sdp->name,
            sdp->information,
            sdp->uri);
+    printf("n_emails: %u\n", sdp->n_emails);
     for (i = 0; i < sdp->n_emails; ++i) {
         printf("emails[%d].address: \"%s\"\n"
                "emails[%d].name: \"%s\"\n",
                i, sdp->emails[i].address,
                i, sdp->emails[i].name);
     }
+    printf("n_phones: %u\n", sdp->n_phones);
     for (i = 0; i < sdp->n_phones; ++i) {
         printf("phones[%d].number: \"%s\"\n"
                "phones[%d].name: \"%s\"\n",
@@ -57,12 +59,14 @@ print_session_descr(const struct osdp_session_descr* sdp)
                sdp->connection->ttl,
                sdp->connection->n_addresses);
     }
+    printf("n_bandwidths: %u\n", sdp->n_bandwidths);
     for (i = 0; i < sdp->n_bandwidths; ++i) {
         printf("bandwidths[%d].type: \"%s\"\n"
                "bandwidths[%d].value: %d\n",
                i, sdp->bandwidths[i].type,
                i, sdp->bandwidths[i].value);
     }
+    printf("n_times: %u\n", sdp->n_times);
     for (i = 0; i < sdp->n_times; ++i) {
         printf("times[%d].start: %llu\n"
                "times[%d].stop: %llu\n",
@@ -79,6 +83,7 @@ print_session_descr(const struct osdp_session_descr* sdp)
             }
         }
     }
+    printf("n_time_zones: %u\n", sdp->n_time_zones);
     for (i = 0; i < sdp->n_time_zones; ++i) {
         printf("time_zones[%d].adjustment_time: %llu\n"
                "time_zones[%d].offset: %d\n",
@@ -91,12 +96,14 @@ print_session_descr(const struct osdp_session_descr* sdp)
                sdp->key->method,
                sdp->key->value);
     }
+    printf("n_attributes: %u\n", sdp->n_attributes);
     for (i = 0; i < sdp->n_attributes; ++i) {
         printf("attributes[%d].name: \"%s\"\n"
                "attributes[%d].value: \"%s\"\n",
                i, sdp->attributes[i].name,
                i, sdp->attributes[i].value);
     }
+    printf("n_media_descrs: %u\n", sdp->n_media_descrs);
     for (i = 0; i < sdp->n_media_descrs; ++i) {
         printf("media_descrs[%d].media.type: \"%s\"\n"
                "media_descrs[%d].media.port: %d\n"
@@ -106,12 +113,16 @@ print_session_descr(const struct osdp_session_descr* sdp)
                i, sdp->media_descrs[i].media->port,
                i, sdp->media_descrs[i].media->n_ports,
                i, sdp->media_descrs[i].media->protocol);
+        printf("media_descrs[%d].media.n_formats: %u\n",
+               i, sdp->media_descrs[i].media->n_formats);
         for (j = 0; j < sdp->media_descrs[i].media->n_formats; ++j) {
             printf("media_descrs[%d].media.formats[%d]: \"%s\"\n",
                    i, j, sdp->media_descrs[i].media->formats[j]);
         }
         printf("media_descrs[%d].information: \"%s\"\n",
                i, sdp->media_descrs[i].information);
+        printf("media_descrs[%d].n_connections: %u\n",
+               i, sdp->media_descrs[i].n_connections);
         for (j = 0; j < sdp->media_descrs[i].n_connections; ++j) {
             /* FIXME: Duplicates connection printing. */
             printf("media_descrs[%d].connections[%d].network_type: \"%s\"\n"
@@ -125,6 +136,8 @@ print_session_descr(const struct osdp_session_descr* sdp)
                    i, j, sdp->media_descrs[i].connections[j].ttl,
                    i, j, sdp->media_descrs[i].connections[j].n_addresses);
         }
+        printf("media_descrs[%d].n_bandwidths: %u\n",
+               i, sdp->media_descrs[i].n_bandwidths);
         for (j = 0; j < sdp->media_descrs[i].n_bandwidths; ++j) {
             /* FIXME: Duplicates bandwidths printing. */
             printf("media_descrs[%d].bandwidths[%d].type: \"%s\"\n"
@@ -139,6 +152,8 @@ print_session_descr(const struct osdp_session_descr* sdp)
                    i, sdp->media_descrs[i].key->method,
                    i, sdp->media_descrs[i].key->value);
         }
+        printf("media_descrs[%d].n_attributes: %u\n",
+               i, sdp->media_descrs[i].n_attributes);
         for (j = 0; j < sdp->media_descrs[i].n_attributes; ++j) {
             /* FIXME: Duplicates attributes printing. */
             printf("media_descrs[%d].attributes[%d].name: \"%s\"\n"
