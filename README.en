@@ -8,7 +8,7 @@ $ ragel -o osdp.c osdp.rl
 $ gcc -o osdp.o -c osdp.c
 
 And link osdp.o to your project. There is example.c to give you a
-clue about the indended usage. Yes, it uses static input buffer of
+clue about the intended usage. Yes, it uses static input buffer of
 fixed size to keep things simple.
 
 [1] http://www.complang.org/ragel/
